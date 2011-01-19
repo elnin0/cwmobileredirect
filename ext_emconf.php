@@ -3,7 +3,7 @@
 ########################################################################
 # Extension Manager/Repository config file for ext "cwmobileredirect".
 #
-# Auto generated 13-01-2011 22:57
+# Auto generated 19-01-2011 22:24
 #
 # Manual updates:
 # Only the data in the array - everything else is removed by next
@@ -40,7 +40,7 @@ $EM_CONF[$_EXTKEY] = array(
 		'suggests' => array(
 		),
 	),
-	'_md5_values_when_last_written' => 'a:6:{s:9:"ChangeLog";s:4:"9e20";s:27:"class.tx_mobileredirect.php";s:4:"6796";s:21:"ext_conf_template.txt";s:4:"8542";s:12:"ext_icon.gif";s:4:"4904";s:17:"ext_localconf.php";s:4:"9952";s:14:"doc/manual.sxw";s:4:"cf6f";}',
+	'_md5_values_when_last_written' => 'a:8:{s:9:"ChangeLog";s:4:"9e20";s:29:"class.tx_cwmobileredirect.php";s:4:"a582";s:21:"ext_conf_template.txt";s:4:"05b4";s:12:"ext_icon.gif";s:4:"4904";s:17:"ext_localconf.php";s:4:"51fd";s:14:"ext_tables.php";s:4:"96e4";s:14:"doc/manual.sxw";s:4:"cf6f";s:33:"static/cwmobileredirect/setup.txt";s:4:"0f73";}',
 	'suggests' => array(
 	),
 );
