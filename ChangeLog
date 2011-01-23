@@ -1,3 +1,12 @@
+2011-01-23 Carsten Windler  <info@windler-consulting.de>      
+
+    * Version 1.2.0 released:
+        - Multi domain setups are now supported!
+        - Configuration is now changeable via TypoScript
+        - Please note that the class name has changed to tx_cwmobileredirect (formerly tx_mobileredirect).
+        - Documentation update (new features)
+        
+
 2011-01-11 Carsten Windler  <info@windler-consulting.de>      
 
     * Version 1.1.1 released:
@@ -8,6 +17,7 @@
         - Obsolete configuration parameter removed: cookie_url
         - Documentation update (new userfuncs)    
 
+        
 2010-12-07 Carsten Windler  <info@windler-consulting.de> 
 
     * Version 1.1.0 released:

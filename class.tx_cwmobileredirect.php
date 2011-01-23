@@ -3,7 +3,7 @@
 /***************************************************************
 *  Copyright notice
 *
-*  (c) 2010 Carsten Windler (info@windler-consulting.de)
+*  (c) 2011 Carsten Windler (info@windler-consulting.de)
 *  All rights reserved
 *
 *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -234,6 +234,7 @@ class tx_cwmobileredirect
             $this->_conf['standard_url'] .= "/";
     }
 
+   
     
     /**
     * First entry point - is always called by preprocessRequest hook to check usage of Typo Script
@@ -517,7 +518,6 @@ class tx_cwmobileredirect
     {
         // Regular expressions for mobile detection by
         // http://detectmobilebrowser.com/
-        // Last Updated: 30 June 2010
         // Thanks a lot!
 
         if(!$useragent)
