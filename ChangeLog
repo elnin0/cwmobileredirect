@@ -1,3 +1,11 @@
+2011-01-31 Carsten Windler  <info@windler-consulting.de>                                
+    * Version 1.2.1 released:
+        - The configuration fields are now in one section again, so please be sure to press “Update” once more after updating to this release, 
+          so all values are correctly saved. 
+          
+          Sorry for any problems caused!
+
+          
 2011-01-23 Carsten Windler  <info@windler-consulting.de>      
 
     * Version 1.2.0 released:
