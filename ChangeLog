@@ -1,3 +1,10 @@
+2011-04-18 Carsten Windler  <info@windler-consulting.de> 
+    * Version 1.3.0 released:
+        - New feature: debug modus
+        - Bugfix: use HTTP_HOST instead of SERVER_NAME to get the actual URL
+        - Minimum requirements set to Typo3 4.3.0
+
+
 2011-01-31 Carsten Windler  <info@windler-consulting.de>                                
     * Version 1.2.1 released:
         - The configuration fields are now in one section again, so please be sure to press “Update” once more after updating to this release, 

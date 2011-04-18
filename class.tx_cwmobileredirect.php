@@ -135,56 +135,62 @@ class tx_cwmobileredirect
      * The extension key
      * @var string
      */
-    protected $extKey                       = 'cwmobileredirect';
+    protected $extKey                   = 'cwmobileredirect';
 
     /**
     * Instance
-    * @var tx_mobileredirect
+    * @var tx_cwmobileredirect
     */
-    protected static $_instance             = null;
+    protected static $_instance         = null;
 
     /**
-    * The onfiguration array
+    * The configuration array
     * @var array
     */
-    protected $_conf                        = null;
+    protected $_conf                    = null;
+    
+    /**
+    * Debug log collector 
+    * @var array
+    */
+    protected $_debugLogArray           = null;
     
     /**
     * The requests URL
     * @var string
     */
-    protected $selfUrl                      = null;
+    protected $selfUrl                  = null;
     
     /**
     * Protocol (http/https)
     * @var string
     */
-    protected $protocol                     = '';
+    protected $protocol                 = '';
     
     /**
     * HTTP status to use for the redirect
     * @var string
     */
-    protected $httpStatus                   = '';
+    protected $httpStatus               = '';
 
     /**
      * Whether mobile is used or not
      * @var boolean
      */
-    protected $isMobileStatus               = null;
+    protected $isMobileStatus           = null;
 
     /**
      * Stores the detected browser (if detection is active) or false
      * @var string|boolean
      */
-    protected $detectedMobileBrowser        = null;
+    protected $detectedMobileBrowser    = null;
 
     /**
      * An array with the user agent (key) and names (value) of all supported browsers
      * (known by this extension ;-)
      * @var array
      */
-    protected $knownMobileBrowsersArr       = array(
+    protected $knownMobileBrowsersArr   = array(
                                                 self::MOBILEREDIRECT_USERAGENT_SAFARI        => 'Safari Mobile',
                                                 self::MOBILEREDIRECT_USERAGENT_OPERA         => 'Opera Mobile',
                                                 self::MOBILEREDIRECT_USERAGENT_OPERA_MINI    => 'Opera Mini',
@@ -227,11 +233,43 @@ class tx_cwmobileredirect
 
         self::$_instance    = $this;
         
-        $this->selfUrl      = $this->getSelfUrl();     
-        $this->_conf        = unserialize($TYPO3_CONF_VARS['EXT']['extConf'][$this->extKey]);
+        if(isset($TYPO3_CONF_VARS['EXT']['extConf'][$this->extKey]))  
+            $this->_conf = unserialize($TYPO3_CONF_VARS['EXT']['extConf'][$this->extKey]);
 
+        // @TODO error_log path & file configurable
+
+        if(!$this->_conf)
+        {
+            $this->debugLog('Configuration array not loaded!');
+            
+            // we need this to enable debug logging into the header comment!
+            $this->_conf['use_typoscript'] = 1;
+        }
+        
+        $this->selfUrl = $this->getSelfUrl();            
+        
+        // Configuration check, if debugging is activated   
+        if($this->_conf['debug'])
+        {
+            // try to create log file, if not existing
+            if(file_exists($this->_conf['error_log']))
+                @touch($this->_conf['error_log']);
+        
+            // check if we can use the log file
+            if(!is_writable($this->_conf['error_log']))
+            {
+                $this->debugLog('error_log file given, but not writable');
+                
+                $this->_conf['error_log'] = null;
+            }
+            
+            // @TODO configuration sanitation    
+        }
+                
         if(strpos($this->selfUrl, "/") !== FALSE)
             $this->_conf['standard_url'] .= "/";
+            
+        $this->debugLog($this->extKey . ' loaded successfully');
     }
 
    
@@ -246,8 +284,12 @@ class tx_cwmobileredirect
     {
         global $TYPO3_CONF_VARS;
         
-        // Check if TypoScript usage is inactive
-        if(empty($this->_conf['use_typoscript']))
+        $this->debugLog('First entry point called');
+        
+        // Check if TypoScript usage is inactive 
+        // If debugging is active, do not unset the second entry point
+        // because we need it for the logging
+        if(empty($this->_conf['use_typoscript']) && empty($this->_conf['debug']))
         {
             // Remove hook to second entry point because we don't want to parse TS
             unset($TYPO3_CONF_VARS['SC_OPTIONS']['tslib/class.tslib_fe.php']['configArrayPostProc']['tx_mobileredirect']);
@@ -272,6 +314,11 @@ class tx_cwmobileredirect
     */
     public function secondEntryPoint(&$params, &$ref)
     {
+        // Only log this if typoscript usage is activated
+        // otherwise this entry point is only called because debugging is enabled
+        if(!empty($this->_conf['use_typoscript']))
+            $this->debugLog('Second entry point called'); 
+        
         // Merge TS configuration with other configuration, if available
         if(isset($params['config']['tx_cwmobileredirect.']))
             $this->_conf = array_merge($this->_conf, $params['config']['tx_cwmobileredirect.']);    
@@ -294,6 +341,8 @@ class tx_cwmobileredirect
         // check if mobile version is forced
         if($this->isMobileForced())
         {
+            $this->debugLog('Mobile version forced'); 
+            
             $this->setExtensionCookie(self::MOBILEREDIRECT_COOKIE_MOBILE);                    
             
             // Check if we need to redirect to the mobile page
@@ -306,6 +355,8 @@ class tx_cwmobileredirect
         // check if standard version is forced
         if($this->isStandardForced())
         {
+            $this->debugLog('Standard version forced'); 
+            
             $this->setExtensionCookie(self::MOBILEREDIRECT_COOKIE_STANDARD);
 
             // Check if we need to redirect to the standard page
@@ -317,11 +368,21 @@ class tx_cwmobileredirect
 
         // end here if mobile detection disabled or mobile URL is already used
         if(!$this->_conf['detection_enabled'] || $this->isMobileUrlRequested())
+        {
+            $this->debugLog('Mobile detection disabled or mobile URL already used');                          
+            
+            $this->writeDebugLogArray();
+            
             return;
-
+        }
+            
         // here the real detection begins
         if($this->detectMobile() && $this->_conf['redirection_enabled'])
+        {
             $this->redirectToMobileUrl(false);
+        }
+        
+        $this->writeDebugLogArray(); 
     }
     
     
@@ -376,6 +437,8 @@ class tx_cwmobileredirect
         // add =1 to param if needed to solve problems with RealUrl and pageHandling
         $urlParam = ($addParam && !empty($this->_conf['add_value_to_params'])) ? '?' . $addParam . '=1' : '';  
            
+        $this->writeDebugLogArray();
+           
         t3lib_utility_Http::redirect($this->protocol . $url . $urlParam, $this->_conf['httpStatus']);
     }
     
@@ -395,6 +458,8 @@ class tx_cwmobileredirect
         } else {
             $this->_conf['httpStatus'] = constant('t3lib_utility_Http::'. $this->_conf['httpStatus']);
         }
+        
+        $this->debugLog('Setting HTTP status', array('http_status' => $this->_conf['httpStatus']));
     }
     
     
@@ -410,9 +475,15 @@ class tx_cwmobileredirect
     protected function setExtensionCookie($cookieValue)
     {
         if($this->_conf['use_cookie'])
+        {
+            $this->debugLog('Setting cookie', array('cookie_value' => $cookieValue)); 
+            
             return setcookie($this->_conf['cookie_name'], $cookieValue, time()+$this->_conf['cookie_lifetime'], "/");
+        }
         else
+        {
             return false;   
+        }
     }
     
     
@@ -499,9 +570,13 @@ class tx_cwmobileredirect
         $this->protocol = substr(strtolower($_SERVER["SERVER_PROTOCOL"]), 0, strpos(strtolower($_SERVER["SERVER_PROTOCOL"]), "/")) . $s . "://";
         
         if($prependProtocol)
-            return $this->protocol . $_SERVER['SERVER_NAME'] . $serverrequri;
+            $returnValue = $this->protocol . $_SERVER['HTTP_HOST'] . $serverrequri;
         else
-            return $_SERVER['SERVER_NAME'] . $serverrequri;
+            $returnValue = $_SERVER['HTTP_HOST'] . $serverrequri;
+            
+        $this->debugLog('Getting Self Url', array('self_url' => $returnValue));
+            
+        return $returnValue;
     }
 
 
@@ -529,12 +604,16 @@ class tx_cwmobileredirect
 
         if((preg_match($rx1, $useragent) || preg_match($rx2, substr($useragent, 0, 4)))) 
         {
+            $this->debugLog('Mobile device detected', 0, array('useragent' => $useragent));
+            
             $this->setIsMobile(true);
 
             return true;
         }
         else
         {
+            $this->debugLog('No mobile device detected');                         
+            
             $this->setIsMobile(false);
 
             return false;
@@ -655,5 +734,70 @@ class tx_cwmobileredirect
             $this->detectMobile();
 
         return $this->isMobileStatus;
+    }
+    
+    
+    
+    /**
+    * Debug Logging
+    * 
+    * depends on debug-Setting in Configuration
+    * 
+    * @param    string  $messageString
+    * @param    array   $dataVar
+    * 
+    * @return   void
+    * 
+    */
+    protected function debugLog($messageString, $dataVar = FALSE) 
+    {
+        // debugging activated?
+        if($this->_conf && empty($this->_conf['debug']))
+            return;
+
+        // yes, collect message
+        if(is_array($dataVar))
+        {
+            $tempArray = array();
+            
+            foreach($dataVar as $key => $value)
+                $tempArray[] = $key . ' => ' . $value;
+            
+            $messageString .= ' ( ' . implode(', ', $tempArray) . ' )';
+        }
+        
+        // store this now, write it later (see writeDebugLogArray)
+        $this->_debugLogArray[] = $messageString;
+        
+        // classic error log
+        $logString = $this->extKey . ': ' . $messageString;
+        
+        if(!empty($this->_conf['error_log']))
+            error_log($logString . "\n", 3, $this->_conf['error_log']);
+        else
+            error_log($logString);
+    }
+    
+    
+    
+    /**
+    * Write the cumulated debug log into the header comment
+    * 
+    * @return   void
+    * 
+    */
+    protected function writeDebugLogArray()
+    {
+        // Anything to log?
+        if(!isset($this->_debugLogArray) || count($this->_debugLogArray) == 0)
+            return;
+        
+        $log = $this->extKey . ' Debug log:' . "\n\r" . implode(",\r", $this->_debugLogArray);
+        
+        // write all log comments into the header
+        $GLOBALS['TSFE']->config['config']['headerComment'] = $log;    
+       
+        // free some memory
+        $this->_debugLogArray = array();                                                            
     }
 }
