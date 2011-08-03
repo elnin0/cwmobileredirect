@@ -35,13 +35,39 @@
        Thanks to cwmobileredirect we know that you want this page to be displayed in mobile mode!
 *    )
 * [end]
-*
+* 
+* [userFunc = user_isMobileForced(Android)]
+*    page.config.headerComment (
+*       Thanks to cwmobileredirect we know that you want this page to be displayed in mobile mode, 
+*       and Android is used!
+*    )
+* [end]
+* 
+* [userFunc = user_isMobileForced(Safari,Android)]
+*    page.config.headerComment (
+*       Thanks to cwmobileredirect we know that hip devices are supported!
+*    )
+* [end]
+* 
+* @param    string  $browserId  (Optional) if set, it is checked if the detected browser equals the given Id
+*                               Note: multiple ids are possible, just pass them comma-separated 
+*                               
 * @return   boolean true mobile mode is forced by GET parameter or by Cookie
 *
 */
-function user_isMobileForced()                                        
-{                                                                   
-    return tx_cwmobileredirect::getInstance()->isMobileForced();        
+function user_isMobileForced($browserId = null)                                        
+{           
+    $forced = tx_cwmobileredirect::getInstance()->isMobileForced();
+ 
+    if($forced && !empty($browserId))
+    {
+        if(strpos($browserId, tx_cwmobileredirect::getInstance()->getDetectedMobileBrowser()) !== false)
+            return true;
+        else
+            return false; 
+    }
+    else
+        return $forced;                                        
 }                                                                   
     
     
@@ -90,14 +116,20 @@ function user_isStandardForced()
 * Pls see the constants MOBILEREDIRECT_USERAGENT_* below to find out which Ids are recognized!
 *
 * @param    string  $browserId  (Optional) if set, it is checked if the detected browser equals the given Id
-*
+*                               Note: multiple ids are possible, just pass them comma-separated 
+*                               
 * @return   boolean true if current browser is detected as a mobile, false otherwise
 *
 */
 function user_isMobile($browserId = null)
 {
     if(!empty($browserId))
-        return (tx_cwmobileredirect::getInstance()->getDetectedMobileBrowser() == $browserId);
+    {
+        if(strpos($browserId, tx_cwmobileredirect::getInstance()->getDetectedMobileBrowser()) !== FALSE)
+            return true;
+        else
+            return false; 
+    }
     else
         return tx_cwmobileredirect::getInstance()->isMobile();
 }
@@ -118,6 +150,7 @@ class tx_cwmobileredirect
      * User agent constants
      */
     const MOBILEREDIRECT_USERAGENT_SAFARI       = 'Safari';
+    const MOBILEREDIRECT_USERAGENT_ANDROID      = 'Android';
     const MOBILEREDIRECT_USERAGENT_OPERA        = 'Opera';
     const MOBILEREDIRECT_USERAGENT_OPERA_MINI   = 'Opera Mini';
     const MOBILEREDIRECT_USERAGENT_MSIE         = 'MSIE';
@@ -162,6 +195,12 @@ class tx_cwmobileredirect
     protected $selfUrl                  = null;
     
     /**
+    * The requested params
+    * @var string
+    */
+    protected $requestParams            = null;
+    
+    /**
     * Protocol (http/https)
     * @var string
     */
@@ -191,6 +230,7 @@ class tx_cwmobileredirect
      * @var array
      */
     protected $knownMobileBrowsersArr   = array(
+                                                self::MOBILEREDIRECT_USERAGENT_ANDROID       => 'Android',
                                                 self::MOBILEREDIRECT_USERAGENT_SAFARI        => 'Safari Mobile',
                                                 self::MOBILEREDIRECT_USERAGENT_OPERA         => 'Opera Mobile',
                                                 self::MOBILEREDIRECT_USERAGENT_OPERA_MINI    => 'Opera Mini',
@@ -245,7 +285,7 @@ class tx_cwmobileredirect
             // we need this to enable debug logging into the header comment!
             $this->_conf['use_typoscript'] = 1;
         }
-        
+
         $this->selfUrl = $this->getSelfUrl();            
         
         // Configuration check, if debugging is activated   
@@ -265,10 +305,7 @@ class tx_cwmobileredirect
             
             // @TODO configuration sanitation    
         }
-                
-        if(strpos($this->selfUrl, "/") !== FALSE)
-            $this->_conf['standard_url'] .= "/";
-            
+
         $this->debugLog($this->extKey . ' loaded successfully');
     }
 
@@ -283,7 +320,7 @@ class tx_cwmobileredirect
     public function firstEntryPoint()
     {
         global $TYPO3_CONF_VARS;
-        
+
         $this->debugLog('First entry point called');
         
         // Check if TypoScript usage is inactive 
@@ -318,7 +355,7 @@ class tx_cwmobileredirect
         // otherwise this entry point is only called because debugging is enabled
         if(!empty($this->_conf['use_typoscript']))
             $this->debugLog('Second entry point called'); 
-        
+
         // Merge TS configuration with other configuration, if available
         if(isset($params['config']['tx_cwmobileredirect.']))
             $this->_conf = array_merge($this->_conf, $params['config']['tx_cwmobileredirect.']);    
@@ -435,7 +472,42 @@ class tx_cwmobileredirect
     protected function redirectTo($url, $addParam = false)
     {
         // add =1 to param if needed to solve problems with RealUrl and pageHandling
-        $urlParam = ($addParam && !empty($this->_conf['add_value_to_params'])) ? '?' . $addParam . '=1' : '';  
+        $urlParam = '';
+
+        // maintain requested URI, if available and configured        
+        if(!empty($this->_conf['maintain_url']) && !empty($this->requestParams))
+            $url .= $this->requestParams;
+        
+        // Add params
+        if($addParam)
+        { 
+            if(!is_array($addParam))
+                $addParam = array($addParam);
+        
+            foreach($addParam as $param)
+            {       
+                // check if param is already given, skip if yes     
+                if(strpos($url, $param) !== FALSE)
+                    continue;
+                    
+                // is it the first parameter?
+                if(strpos($url, "?") !== FALSE)
+                    $urlParam .= "&";
+                else                    
+                    $urlParam .= "?";
+                    
+                $urlParam .= $param;
+                
+                // add =1 to param if needed to solve problems with RealUrl and pageHandling                                                   
+                if(!empty($this->_conf['add_value_to_params']))
+                    $urlParam .= '=1';    
+            }
+        }
+
+        if(strpos($url, "/") === FALSE)
+            $url .= "/";
+        
+        $this->debugLog('Redirecting to ' . $url);
            
         $this->writeDebugLogArray();
            
@@ -496,7 +568,6 @@ class tx_cwmobileredirect
     */
     public function isMobileUrlRequested()
     {
-        //return (strpos($this->selfUrl, $this->_conf['mobile_url']) === FALSE);   
         return (strpos($this->selfUrl, $this->_conf['mobile_url']) !== FALSE);   
     }
     
@@ -510,7 +581,6 @@ class tx_cwmobileredirect
     */
     public function isStandardUrlRequested()
     {
-        //return (strpos($this->selfUrl, $this->_conf['standard_url']) === FALSE);   
         return (strpos($this->selfUrl, $this->_conf['standard_url']) !== FALSE);   
     }
     
@@ -542,7 +612,8 @@ class tx_cwmobileredirect
     */
     public function isMobileForced()
     {
-        return ((isset($_COOKIE[$this->_conf['cookie_name']]) && $_COOKIE[$this->_conf['cookie_name']] == self::MOBILEREDIRECT_COOKIE_MOBILE && !isset($_GET[$this->_conf['no_mobile_name']])) || 
+        return ($this->isMobile() || 
+                (isset($_COOKIE[$this->_conf['cookie_name']]) && $_COOKIE[$this->_conf['cookie_name']] == self::MOBILEREDIRECT_COOKIE_MOBILE && !isset($_GET[$this->_conf['no_mobile_name']])) || 
                 (!empty($this->_conf['is_mobile_name']) && isset($_GET[$this->_conf['is_mobile_name']])))
                 ? true
                 : false;   
@@ -561,18 +632,21 @@ class tx_cwmobileredirect
     private function getSelfUrl($prependProtocol = false)
     {
         if(!isset($_SERVER['REQUEST_URI']))
-            $serverrequri = $_SERVER['PHP_SELF'];
+            $url = $_SERVER['PHP_SELF'];
         else
-            $serverrequri = $_SERVER['REQUEST_URI'];
+            $url = $_SERVER['REQUEST_URI'];
+            
+        // Get the requested params for direct forwarding
+        $this->getRequestedParams();    
 
         // store used protocol for later use
         $s              = empty($_SERVER["HTTPS"]) ? '' : ($_SERVER["HTTPS"] == "on") ? "s" : "";
         $this->protocol = substr(strtolower($_SERVER["SERVER_PROTOCOL"]), 0, strpos(strtolower($_SERVER["SERVER_PROTOCOL"]), "/")) . $s . "://";
         
         if($prependProtocol)
-            $returnValue = $this->protocol . $_SERVER['HTTP_HOST'] . $serverrequri;
+            $returnValue = $this->protocol . $_SERVER['HTTP_HOST'] . $url;
         else
-            $returnValue = $_SERVER['HTTP_HOST'] . $serverrequri;
+            $returnValue = $_SERVER['HTTP_HOST'] . $url;
             
         $this->debugLog('Getting Self Url', array('self_url' => $returnValue));
             
@@ -799,5 +873,31 @@ class tx_cwmobileredirect
        
         // free some memory
         $this->_debugLogArray = array();                                                            
+    }
+    
+    
+    
+    /**
+    * Get requested params (if needed for keeping the requested URL)
+    * 
+    * @return   void
+    * 
+    */
+    protected function getRequestedParams()
+    {
+        $queryString = (!empty($_SERVER['QUERY_STRING'])) ? $_SERVER['QUERY_STRING'] : http_build_query($_GET);
+
+        // First guess (Apache only, no IIS)
+        if(!empty($_SERVER['REQUEST_URI']))
+            $this->requestParams = $_SERVER['REQUEST_URI'];
+        // I hope this is working, should work on IIS
+        else if(!empty($_SERVER['REDIRECT_SCRIPT_URL']))
+            $this->requestParams = $_SERVER['REDIRECT_SCRIPT_URL'] . $queryString;
+        // Fallback
+        else 
+            $this->requestParams = $_SERVER['PHP_SELF'] . $queryString;
+        
+        $this->debugLog(print_r($_SERVER,1));
+        $this->debugLog("Requested params: " . $this->requestParams);
     }
 }

@@ -4,6 +4,9 @@ standard_url = www.domain.com
 # cat=basic; type=text; label=Mobile URL:This is the URL the extension redirects to (without http://)          
 mobile_url = mobile.domain.com
 
+# cat=basic; type=boolean; label=Maintain URL:Keeps reqested URL instead of redirecting to domain name only (e.g. www.domain.de/about.html will stay mobile.domain.de/about.html)
+maintain_url = 0
+
 # cat=basic; type=boolean; label=Use Cookie?
 use_cookie = 1
 
