@@ -57,7 +57,7 @@
 */
 function user_isMobileForced($browserId = null)                                        
 {           
-    $forced = tx_cwmobileredirect::getInstance()->isMobileForced();
+    $forced = (tx_cwmobileredirect::getInstance()->isMobileForced() || tx_cwmobileredirect::getInstance()->isMobile());
  
     if($forced && !empty($browserId))
     {
@@ -305,12 +305,26 @@ class tx_cwmobileredirect
             
             // @TODO configuration sanitation    
         }
+        
+        $this->debugLog(print_r($this->_conf,1));
 
         $this->debugLog($this->extKey . ' loaded successfully');
     }
+    
+    
+    
+    /**
+    * Destructor
+    * 
+    */
+    public function __destruct()
+    {
+        // Write the debug log before destruction
+        $this->writeDebugLogArray(); 
+    }
 
    
-    
+   
     /**
     * First entry point - is always called by preprocessRequest hook to check usage of Typo Script
     * 
@@ -373,7 +387,20 @@ class tx_cwmobileredirect
     */
     public function checkRedirect()
     {
-        $this->setHttpStatus();        
+        // Don't do anything in this case 
+        if(!$this->isMobileUrlRequested() &&
+            !$this->isStandardUrlRequested())
+        {
+            $this->debugLog('Neither mobile nor standard URL requested'); 
+            
+            return;
+        }
+
+        $this->setHttpStatus();     
+
+        // don't redirect in case a system path is called
+        if(preg_match('/typo3conf/', t3lib_div::getIndpEnv('REQUEST_URI'))) 
+            return;   
 
         // check if mobile version is forced
         if($this->isMobileForced())
@@ -408,8 +435,6 @@ class tx_cwmobileredirect
         {
             $this->debugLog('Mobile detection disabled or mobile URL already used');                          
             
-            $this->writeDebugLogArray();
-            
             return;
         }
             
@@ -419,7 +444,7 @@ class tx_cwmobileredirect
             $this->redirectToMobileUrl(false);
         }
         
-        $this->writeDebugLogArray(); 
+        return; 
     }
     
     
@@ -594,7 +619,12 @@ class tx_cwmobileredirect
     * 
     */
     public function isStandardForced()
-    {                                                                                                                          
+    {                        
+        $this->debugLog("--------------- isStandardForced BEGIN  ----------------------");
+        $this->debugLog(print_r($_COOKIE,1));
+        $this->debugLog(print_r($_GET,1));
+        $this->debugLog("--------------- isStandardForced END ----------------------");
+        
         return ((isset($_COOKIE[$this->_conf['cookie_name']]) && $_COOKIE[$this->_conf['cookie_name']] == self::MOBILEREDIRECT_COOKIE_STANDARD && !isset($_GET[$this->_conf['is_mobile_name']])) || 
                 (!empty($this->_conf['no_mobile_name']) && isset($_GET[$this->_conf['no_mobile_name']])))
                 ? true
@@ -612,8 +642,12 @@ class tx_cwmobileredirect
     */
     public function isMobileForced()
     {
-        return ($this->isMobile() || 
-                (isset($_COOKIE[$this->_conf['cookie_name']]) && $_COOKIE[$this->_conf['cookie_name']] == self::MOBILEREDIRECT_COOKIE_MOBILE && !isset($_GET[$this->_conf['no_mobile_name']])) || 
+        $this->debugLog("--------------- isMobileForced BEGIN  ----------------------");
+        $this->debugLog(print_r($_COOKIE,1));
+        $this->debugLog(print_r($_GET,1));
+        $this->debugLog("--------------- isMobileForced END ----------------------");
+        
+        return ((isset($_COOKIE[$this->_conf['cookie_name']]) && $_COOKIE[$this->_conf['cookie_name']] == self::MOBILEREDIRECT_COOKIE_MOBILE && !isset($_GET[$this->_conf['no_mobile_name']])) || 
                 (!empty($this->_conf['is_mobile_name']) && isset($_GET[$this->_conf['is_mobile_name']])))
                 ? true
                 : false;   
@@ -897,7 +931,10 @@ class tx_cwmobileredirect
         else 
             $this->requestParams = $_SERVER['PHP_SELF'] . $queryString;
         
+        $this->debugLog("----------- SERVER BEGIN -----------");
         $this->debugLog(print_r($_SERVER,1));
+        $this->debugLog("----------- SERVER END -----------");
+        
         $this->debugLog("Requested params: " . $this->requestParams);
     }
 }

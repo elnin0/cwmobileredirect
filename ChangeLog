@@ -1,3 +1,16 @@
+2011-12-18 Carsten Windler  <info@windler-consulting.de>
+    * Version 1.4.2 released:
+        - Default regexp updated from http://detectmobilebrowsers.com/ (now 22 August 2011)
+        - Change/Bugfix: user_isMobileForced now returns true, if mobile is forced or if a real mobile is used (thanks to Bert Hiddink)
+        - Change: Do not redirect if typo3conf directory is accessed (credits go to Roman Büchler)
+        - Documentation updated
+    
+    
+2011-08-11 Carsten Windler  <info@windler-consulting.de> 
+    * Version 1.4.1 released:
+        - Bugfix: noMobile switch not working correctly    
+
+
 2011-07-27 Carsten Windler  <info@windler-consulting.de> 
     * Version 1.4.0 released:
         - New feature: maintain_url (see configuration)
