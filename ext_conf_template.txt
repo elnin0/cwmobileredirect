@@ -40,6 +40,9 @@ detection_enabled = 1
 # cat=basic/enable; type=boolean; label=Enable redirection to mobile version:Enable redirection to mobile version.  
 redirection_enabled = 1
        
+# cat=basic/enable; type=boolean; label=Enable re-redirection to standard  version:Enable re-redirection to standard version.  
+re_redirection_enabled = 1
+
 # cat=basic/other; type=text; label=HTTP Status Code, see class.t3lib_utility_http.php
 http_status = HTTP_STATUS_303
                                                                                                                                                                          

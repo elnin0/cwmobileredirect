@@ -430,18 +430,24 @@ class tx_cwmobileredirect
             return;
         }
 
-        // end here if mobile detection disabled or mobile URL is already used
-        if(!$this->_conf['detection_enabled'] || $this->isMobileUrlRequested())
+        // end here if mobile detection disabled 
+        if(!$this->_conf['detection_enabled'])
         {
-            $this->debugLog('Mobile detection disabled or mobile URL already used');                          
+            $this->debugLog('Mobile detection disabled');                          
             
             return;
         }
             
         // here the real detection begins
-        if($this->detectMobile() && $this->_conf['redirection_enabled'])
+        //redirect to mobile if mobile url is not already requested
+        if($this->detectMobile() && $this->_conf['redirection_enabled'] && !$this->isMobileUrlRequested())
         {
             $this->redirectToMobileUrl(false);
+        }
+        // re redirect to standard if standard url is not already requested
+        if(!$this->detectMobile() && $this->_conf['re_redirection_enabled']&& !$this->isStandardUrlRequested())
+        {
+            $this->redirectToStandardUrl(false);
         }
         
         return; 
